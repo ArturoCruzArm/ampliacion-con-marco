@@ -77,79 +77,6 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         // ---------- TEXTURES ----------
-        function createPhotoTexture(w, h) {
-            const cv = document.createElement('canvas');
-            cv.width = w; cv.height = h;
-            const ctx = cv.getContext('2d');
-
-            // Gradient background simulating a golden-hour photo
-            const grad = ctx.createRadialGradient(w*0.45, h*0.4, 0, w*0.5, h*0.5, w*0.7);
-            grad.addColorStop(0,   '#f5e4c0');
-            grad.addColorStop(0.3, '#d4a870');
-            grad.addColorStop(0.6, '#8a6040');
-            grad.addColorStop(1,   '#1a1008');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, w, h);
-
-            // Silhouette of a couple
-            ctx.fillStyle = 'rgba(20,10,5,0.85)';
-            // Left figure
-            ctx.beginPath();
-            ctx.ellipse(w*0.42, h*0.32, w*0.04, w*0.04, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(w*0.38, h*0.36);
-            ctx.quadraticCurveTo(w*0.42, h*0.72, w*0.38, h*0.82);
-            ctx.lineTo(w*0.46, h*0.82);
-            ctx.quadraticCurveTo(w*0.46, h*0.72, w*0.46, h*0.36);
-            ctx.closePath();
-            ctx.fill();
-            // Right figure
-            ctx.beginPath();
-            ctx.ellipse(w*0.55, h*0.31, w*0.038, w*0.038, 0, 0, Math.PI*2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(w*0.52, h*0.35);
-            ctx.quadraticCurveTo(w*0.555, h*0.7, w*0.52, h*0.82);
-            ctx.lineTo(w*0.59, h*0.82);
-            ctx.quadraticCurveTo(w*0.59, h*0.7, w*0.59, h*0.35);
-            ctx.closePath();
-            ctx.fill();
-            // Ground line
-            ctx.fillStyle = 'rgba(15,8,3,0.6)';
-            ctx.fillRect(0, h*0.82, w, h*0.18);
-
-            // Bokeh lights
-            for (let i = 0; i < 30; i++) {
-                const bx = Math.random() * w;
-                const by = Math.random() * h * 0.75;
-                const br = 4 + Math.random() * 12;
-                const bg = ctx.createRadialGradient(bx, by, 0, bx, by, br);
-                bg.addColorStop(0, `rgba(255,220,120,${0.15 + Math.random()*0.15})`);
-                bg.addColorStop(1, 'rgba(255,220,120,0)');
-                ctx.fillStyle = bg;
-                ctx.beginPath();
-                ctx.arc(bx, by, br, 0, Math.PI*2);
-                ctx.fill();
-            }
-
-            // Subtle vignette
-            const vig = ctx.createRadialGradient(w/2, h/2, h*0.3, w/2, h/2, h*0.8);
-            vig.addColorStop(0, 'rgba(0,0,0,0)');
-            vig.addColorStop(1, 'rgba(0,0,0,0.5)');
-            ctx.fillStyle = vig;
-            ctx.fillRect(0, 0, w, h);
-
-            // "FORO 7" watermark
-            ctx.fillStyle = 'rgba(212,175,55,0.18)';
-            ctx.font = `bold ${w*0.06}px Georgia, serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('FORO 7', w/2, h*0.92);
-
-            return new THREE.CanvasTexture(cv);
-        }
-
         function createFrameTexture(w, h) {
             const cv = document.createElement('canvas');
             cv.width = w; cv.height = h;
@@ -199,7 +126,7 @@
             return new THREE.CanvasTexture(cv);
         }
 
-        const photoTex  = createPhotoTexture(512, 640);
+        const photoTex  = new THREE.TextureLoader().load('AMP.jpg');
         const frameTex  = createFrameTexture(256, 256);
         const ppTex     = createPassepartoutTexture(256, 256);
 
