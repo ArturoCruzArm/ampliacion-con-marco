@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ampliación con Marco - Foro 7 Producciones</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0a0f'/%3E%3Crect x='4' y='4' width='24' height='24' rx='2' fill='none' stroke='%23d4af37' stroke-width='3'/%3E%3Crect x='8' y='8' width='16' height='16' rx='1' fill='%23334'/%3E%3C/svg%3E">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0f;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            touch-action: none;
+            user-select: none;
+        }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        #title-overlay {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            color: rgba(212,175,55,0.6); font-size: 11px; letter-spacing: 4px;
+            font-family: monospace; text-transform: uppercase;
+            pointer-events: none; text-align: center; white-space: nowrap;
+        }
+        #title-overlay .sub {
+            display: block; font-size: 9px; color: rgba(255,255,255,0.3);
+            letter-spacing: 2px; margin-top: 4px;
+        }
+        #size-badge {
+            position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+            color: rgba(212,175,55,0.4); font-size: 10px; letter-spacing: 3px;
+            font-family: monospace; text-transform: uppercase; pointer-events: none;
+            text-align: center;
+        }
+        #toggle-btn {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3);
+            color: #d4af37; padding: 10px 28px; border-radius: 8px;
+            font-family: monospace; font-size: 12px; letter-spacing: 3px;
+            text-transform: uppercase; cursor: pointer; transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+        #toggle-btn:hover { background: rgba(212,175,55,0.2); border-color: rgba(212,175,55,0.5); }
+        #hint {
+            position: fixed; bottom: 20px; right: 20px;
+            color: rgba(255,255,255,0.15); font-size: 9px; letter-spacing: 2px;
+            font-family: monospace; pointer-events: none; text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <div id="title-overlay">
+        Ampliación con Marco
+        <span class="sub">Foro 7 Producciones</span>
+    </div>
+    <div id="size-badge">40×50 · 50×60 · 60×80 cm</div>
+    <button id="toggle-btn">Girar Marco</button>
+    <div id="hint">Arrastra para rotar · Scroll para zoom</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    (function() {
+        'use strict';
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0a0a0f, 0.025);
+
+        const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0, 7);
+
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // ---------- TEXTURES ----------
+        function createPhotoTexture(w, h) {
+            const cv = document.createElement('canvas');
+            cv.width = w; cv.height = h;
+            const ctx = cv.getContext('2d');
+
+            // Gradient background simulating a golden-hour photo
+            const grad = ctx.createRadialGradient(w*0.45, h*0.4, 0, w*0.5, h*0.5, w*0.7);
+            grad.addColorStop(0,   '#f5e4c0');
+            grad.addColorStop(0.3, '#d4a870');
+            grad.addColorStop(0.6, '#8a6040');
+            grad.addColorStop(1,   '#1a1008');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+
+            // Silhouette of a couple
+            ctx.fillStyle = 'rgba(20,10,5,0.85)';
+            // Left figure
+            ctx.beginPath();
+            ctx.ellipse(w*0.42, h*0.32, w*0.04, w*0.04, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(w*0.38, h*0.36);
+            ctx.quadraticCurveTo(w*0.42, h*0.72, w*0.38, h*0.82);
+            ctx.lineTo(w*0.46, h*0.82);
+            ctx.quadraticCurveTo(w*0.46, h*0.72, w*0.46, h*0.36);
+            ctx.closePath();
+            ctx.fill();
+            // Right figure
+            ctx.beginPath();
+            ctx.ellipse(w*0.55, h*0.31, w*0.038, w*0.038, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(w*0.52, h*0.35);
+            ctx.quadraticCurveTo(w*0.555, h*0.7, w*0.52, h*0.82);
+            ctx.lineTo(w*0.59, h*0.82);
+            ctx.quadraticCurveTo(w*0.59, h*0.7, w*0.59, h*0.35);
+            ctx.closePath();
+            ctx.fill();
+            // Ground line
+            ctx.fillStyle = 'rgba(15,8,3,0.6)';
+            ctx.fillRect(0, h*0.82, w, h*0.18);
+
+            // Bokeh lights
+            for (let i = 0; i < 30; i++) {
+                const bx = Math.random() * w;
+                const by = Math.random() * h * 0.75;
+                const br = 4 + Math.random() * 12;
+                const bg = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+                bg.addColorStop(0, `rgba(255,220,120,${0.15 + Math.random()*0.15})`);
+                bg.addColorStop(1, 'rgba(255,220,120,0)');
+                ctx.fillStyle = bg;
+                ctx.beginPath();
+                ctx.arc(bx, by, br, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            // Subtle vignette
+            const vig = ctx.createRadialGradient(w/2, h/2, h*0.3, w/2, h/2, h*0.8);
+            vig.addColorStop(0, 'rgba(0,0,0,0)');
+            vig.addColorStop(1, 'rgba(0,0,0,0.5)');
+            ctx.fillStyle = vig;
+            ctx.fillRect(0, 0, w, h);
+
+            // "FORO 7" watermark
+            ctx.fillStyle = 'rgba(212,175,55,0.18)';
+            ctx.font = `bold ${w*0.06}px Georgia, serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('FORO 7', w/2, h*0.92);
+
+            return new THREE.CanvasTexture(cv);
+        }
+
+        function createFrameTexture(w, h) {
+            const cv = document.createElement('canvas');
+            cv.width = w; cv.height = h;
+            const ctx = cv.getContext('2d');
+
+            // Rich dark wood base
+            ctx.fillStyle = '#2a1a0a';
+            ctx.fillRect(0, 0, w, h);
+
+            // Wood grain lines
+            for (let i = 0; i < 60; i++) {
+                const y = Math.random() * h;
+                ctx.strokeStyle = `rgba(${80+Math.random()*40},${45+Math.random()*25},${15+Math.random()*15},${0.08+Math.random()*0.1})`;
+                ctx.lineWidth = Math.random() * 1.5 + 0.3;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                for (let x = 0; x < w; x += 6) {
+                    ctx.lineTo(x, y + Math.sin(x*0.02 + i*0.5)*2);
+                }
+                ctx.stroke();
+            }
+
+            // Gold edge highlight
+            const grad = ctx.createLinearGradient(0, 0, w, 0);
+            grad.addColorStop(0,   'rgba(212,175,55,0.0)');
+            grad.addColorStop(0.15,'rgba(212,175,55,0.25)');
+            grad.addColorStop(0.5, 'rgba(212,175,55,0.0)');
+            grad.addColorStop(0.85,'rgba(212,175,55,0.25)');
+            grad.addColorStop(1,   'rgba(212,175,55,0.0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+
+            return new THREE.CanvasTexture(cv);
+        }
+
+        function createPassepartoutTexture(w, h) {
+            const cv = document.createElement('canvas');
+            cv.width = w; cv.height = h;
+            const ctx = cv.getContext('2d');
+            ctx.fillStyle = '#f0ece4';
+            ctx.fillRect(0, 0, w, h);
+            // Subtle paper texture
+            for (let i = 0; i < 2000; i++) {
+                ctx.fillStyle = `rgba(${160+Math.random()*30},${150+Math.random()*30},${130+Math.random()*30},0.15)`;
+                ctx.fillRect(Math.random()*w, Math.random()*h, 1, 1);
+            }
+            return new THREE.CanvasTexture(cv);
+        }
+
+        const photoTex  = createPhotoTexture(512, 640);
+        const frameTex  = createFrameTexture(256, 256);
+        const ppTex     = createPassepartoutTexture(256, 256);
+
+        // ---------- MATERIALS ----------
+        const frameMat = new THREE.MeshPhongMaterial({
+            map: frameTex, specular: 0x332211, shininess: 30
+        });
+        const goldMat = new THREE.MeshPhongMaterial({
+            color: 0xd4af37, specular: 0xffffff, shininess: 80,
+            emissive: 0xb8960b, emissiveIntensity: 0.08
+        });
+        const photoMat = new THREE.MeshPhongMaterial({
+            map: photoTex, specular: 0x111111, shininess: 15
+        });
+        const ppMat = new THREE.MeshPhongMaterial({
+            map: ppTex, specular: 0x000000, shininess: 5
+        });
+        const glassMat = new THREE.MeshPhongMaterial({
+            color: 0xaaccee, transparent: true, opacity: 0.08,
+            specular: 0xffffff, shininess: 200, side: THREE.FrontSide
+        });
+        const backMat = new THREE.MeshPhongMaterial({
+            color: 0x1a1208, specular: 0x000000, shininess: 2
+        });
+
+        // ---------- DIMENSIONS ----------
+        // Frame outer: 4.2 wide x 5.2 tall (portrait, proportional to 50x60)
+        const FW = 4.2, FH = 5.2, FD = 0.18; // frame outer
+        const BORDER = 0.38; // frame border width
+        const PPB = 0.22;    // passepartout border
+        const iW = FW - BORDER*2; // inner opening width
+        const iH = FH - BORDER*2;
+        const pW = iW - PPB*2;    // photo width
+        const pH = iH - PPB*2;
+
+        const frame = new THREE.Group();
+
+        // --- Frame borders (4 pieces) ---
+        function makeBar(w, h, d, x, y) {
+            const g = new THREE.BoxGeometry(w, h, d);
+            const m = new THREE.Mesh(g, frameMat);
+            m.position.set(x, y, 0);
+            m.castShadow = true;
+            return m;
+        }
+        // Top bar
+        frame.add(makeBar(FW, BORDER, FD, 0,  FH/2 - BORDER/2));
+        // Bottom bar
+        frame.add(makeBar(FW, BORDER, FD, 0, -FH/2 + BORDER/2));
+        // Left bar
+        frame.add(makeBar(BORDER, FH - BORDER*2, FD, -FW/2 + BORDER/2, 0));
+        // Right bar
+        frame.add(makeBar(BORDER, FH - BORDER*2, FD,  FW/2 - BORDER/2, 0));
+
+        // --- Gold inner bevel strip (thin edge around opening) ---
+        const bevelW = 0.04;
+        function makeGoldBevel(w, h, x, y) {
+            const g = new THREE.BoxGeometry(w, h, FD*0.5);
+            const m = new THREE.Mesh(g, goldMat);
+            m.position.set(x, y, FD*0.26);
+            return m;
+        }
+        frame.add(makeGoldBevel(iW + bevelW*2, bevelW, 0,  iH/2 + bevelW/2));
+        frame.add(makeGoldBevel(iW + bevelW*2, bevelW, 0, -iH/2 - bevelW/2));
+        frame.add(makeGoldBevel(bevelW, iH, -iW/2 - bevelW/2, 0));
+        frame.add(makeGoldBevel(bevelW, iH,  iW/2 + bevelW/2, 0));
+
+        // --- Passepartout (cream mat border) ---
+        const ppGeom = new THREE.BoxGeometry(iW, iH, 0.04);
+        const pp = new THREE.Mesh(ppGeom, ppMat);
+        pp.position.set(0, 0, FD*0.3);
+        frame.add(pp);
+
+        // Passepartout inner cutout: mask with photo showing through
+        // (simulate with a slightly recessed photo behind)
+
+        // --- Photo ---
+        const photoGeom = new THREE.PlaneGeometry(pW, pH);
+        const photo = new THREE.Mesh(photoGeom, photoMat);
+        photo.position.set(0, 0, FD*0.31);
+        frame.add(photo);
+
+        // --- Glass (very subtle) ---
+        const glassGeom = new THREE.PlaneGeometry(iW, iH);
+        const glass = new THREE.Mesh(glassGeom, glassMat);
+        glass.position.set(0, 0, FD*0.52);
+        frame.add(glass);
+
+        // --- Back panel ---
+        const backGeom = new THREE.BoxGeometry(FW, FH, 0.06);
+        const back = new THREE.Mesh(backGeom, backMat);
+        back.position.set(0, 0, -FD*0.5 - 0.03);
+        frame.add(back);
+
+        // --- Hanging wire detail ---
+        const wireGeom = new THREE.CylinderGeometry(0.008, 0.008, FW * 0.6, 6);
+        const wireMat = new THREE.MeshPhongMaterial({ color: 0x888898, specular: 0xffffff, shininess: 80 });
+        const wire = new THREE.Mesh(wireGeom, wireMat);
+        wire.rotation.z = Math.PI / 2;
+        wire.position.set(0, FH/2 - 0.1, -FD*0.3);
+        frame.add(wire);
+
+        // Hook left
+        const hook1 = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 8, Math.PI), wireMat);
+        hook1.rotation.z = Math.PI;
+        hook1.position.set(-FW*0.25, FH/2 - 0.12, -FD*0.3);
+        frame.add(hook1);
+
+        // Hook right
+        const hook2 = hook1.clone();
+        hook2.position.set(FW*0.25, FH/2 - 0.12, -FD*0.3);
+        frame.add(hook2);
+
+        // --- Shadow plane ---
+        const shadowPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(12, 12),
+            new THREE.ShadowMaterial({ opacity: 0.3 })
+        );
+        shadowPlane.rotation.x = -Math.PI/2;
+        shadowPlane.position.y = -4;
+        shadowPlane.receiveShadow = true;
+        scene.add(shadowPlane);
+
+        scene.add(frame);
+
+        // ---------- LIGHTS ----------
+        const ambient = new THREE.AmbientLight(0xfff8e8, 0.35);
+        scene.add(ambient);
+
+        const keyLight = new THREE.DirectionalLight(0xfff5d0, 1.2);
+        keyLight.position.set(3, 5, 6);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.set(1024, 1024);
+        scene.add(keyLight);
+
+        const fillLight = new THREE.DirectionalLight(0xc8d8ff, 0.3);
+        fillLight.position.set(-4, 2, 3);
+        scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0xd4af37, 0.5);
+        rimLight.position.set(0, -3, -5);
+        scene.add(rimLight);
+
+        const pointLight1 = new THREE.PointLight(0xffd080, 0.8, 15);
+        pointLight1.position.set(-3, 3, 5);
+        scene.add(pointLight1);
+
+        // ---------- INTERACTION ----------
+        let isDragging = false, prevX = 0, prevY = 0;
+        let rotX = -0.15, rotY = 0.3;
+        let targetRotX = rotX, targetRotY = rotY;
+        let zoom = 7, targetZoom = 7;
+        let autoRotate = true;
+        let autoRotateTimer = null;
+
+        const canvas = document.getElementById('c');
+
+        canvas.addEventListener('mousedown', e => {
+            isDragging = true; prevX = e.clientX; prevY = e.clientY;
+            autoRotate = false; clearTimeout(autoRotateTimer);
+        });
+        canvas.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            targetRotY += (e.clientX - prevX) * 0.008;
+            targetRotX += (e.clientY - prevY) * 0.006;
+            targetRotX = Math.max(-1.2, Math.min(1.2, targetRotX));
+            prevX = e.clientX; prevY = e.clientY;
+        });
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            autoRotateTimer = setTimeout(() => { autoRotate = true; }, 3000);
+        });
+        canvas.addEventListener('wheel', e => {
+            targetZoom += e.deltaY * 0.005;
+            targetZoom = Math.max(3.5, Math.min(11, targetZoom));
+        });
+
+        canvas.addEventListener('touchstart', e => {
+            isDragging = true;
+            prevX = e.touches[0].clientX; prevY = e.touches[0].clientY;
+            autoRotate = false; clearTimeout(autoRotateTimer);
+        });
+        canvas.addEventListener('touchmove', e => {
+            if (!isDragging) return;
+            e.preventDefault();
+            targetRotY += (e.touches[0].clientX - prevX) * 0.01;
+            targetRotX += (e.touches[0].clientY - prevY) * 0.008;
+            targetRotX = Math.max(-1.2, Math.min(1.2, targetRotX));
+            prevX = e.touches[0].clientX; prevY = e.touches[0].clientY;
+        }, { passive: false });
+        canvas.addEventListener('touchend', () => {
+            isDragging = false;
+            autoRotateTimer = setTimeout(() => { autoRotate = true; }, 3000);
+        });
+
+        // Toggle button — flip frame to show back
+        let showingBack = false;
+        document.getElementById('toggle-btn').addEventListener('click', () => {
+            showingBack = !showingBack;
+            targetRotY = showingBack ? Math.PI : 0.3;
+            targetRotX = 0;
+            document.getElementById('toggle-btn').textContent = showingBack ? 'Ver Frente' : 'Girar Marco';
+            autoRotate = false;
+            autoRotateTimer = setTimeout(() => { autoRotate = true; }, 5000);
+        });
+
+        // ---------- RESIZE ----------
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ---------- ANIMATE ----------
+        let t = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            t += 0.008;
+
+            if (autoRotate) targetRotY += 0.004;
+
+            rotX += (targetRotX - rotX) * 0.07;
+            rotY += (targetRotY - rotY) * 0.07;
+            zoom += (targetZoom - zoom) * 0.07;
+
+            frame.rotation.x = rotX;
+            frame.rotation.y = rotY;
+
+            // Gentle float
+            frame.position.y = Math.sin(t * 0.5) * 0.06;
+
+            camera.position.z = zoom;
+
+            // Animate point light
+            pointLight1.position.x = Math.sin(t * 0.4) * 4;
+            pointLight1.position.y = Math.cos(t * 0.3) * 3 + 2;
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+    })();
+    </script>
+</body>
+</html>
